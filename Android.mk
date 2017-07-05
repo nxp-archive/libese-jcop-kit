@@ -15,7 +15,7 @@ D_CFLAGS += -DNXP_LDR_SVC_VER_2=TRUE
 include $(CLEAR_VARS)
 LOCAL_PRELINK_MODULE := false
 LOCAL_ARM_MODE := arm
-LOCAL_MODULE := libp61-jcop-kit
+LOCAL_MODULE := libese-jcop-kit
 LOCAL_MODULE_TAGS := optional
 LOCAL_SHARED_LIBRARIES := libhardware_legacy libcutils liblog libdl libhardware
 LOCAL_CFLAGS := $(D_CFLAGS)
