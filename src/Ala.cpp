@@ -524,7 +524,6 @@ tJBL_STATUS ALA_OpenChannel(Ala_ImageInfo_t *Os_info, tJBL_STATUS status,
     bool stat = false;
     INT32 recvBufferActualSize = 0;
     IChannel_t *mchannel = gpAla_Dwnld_Context->mchannel;
-    Os_info->channel_cnt = 0x00;
     ALOGD("%s: enter", fn);
     if(Os_info == NULL ||
        pTranscv_Info == NULL)
@@ -533,6 +532,7 @@ tJBL_STATUS ALA_OpenChannel(Ala_ImageInfo_t *Os_info, tJBL_STATUS status,
     }
     else
     {
+        Os_info->channel_cnt = 0x00;
         pTranscv_Info->timeout = gTransceiveTimeout;
         pTranscv_Info->sSendlength = (INT32)sizeof(OpenChannel);
         pTranscv_Info->sRecvlength = 1024;//(INT32)sizeof(INT32);
@@ -790,10 +790,19 @@ tJBL_STATUS ALA_loadapplet(Ala_ImageInfo_t *Os_info, tJBL_STATUS status, Ala_Tra
     UINT8 temp_buf[1024];
     UINT8 len_byte=0, offset =0;
     IChannel_t *mchannel = gpAla_Dwnld_Context->mchannel;
-    Os_info->bytes_read = 0;
 #if(NXP_LDR_SVC_VER_2 == TRUE)
     BOOLEAN reachEOFCheck = FALSE;
     tJBL_STATUS tag40_found = STATUS_FAILED;
+#endif
+    ALOGD("%s: enter", fn);
+    if(Os_info == NULL ||
+       pTranscv_Info == NULL)
+    {
+        ALOGE("%s: invalid parameter", fn);
+        return status;
+    }
+    Os_info->bytes_read = 0;
+#if(NXP_LDR_SVC_VER_2 == TRUE)
     if(Os_info->bytes_wrote == 0xAA)
     {
         Os_info->fResp = fopen(Os_info->fls_RespPath, "a+");
@@ -810,13 +819,7 @@ tJBL_STATUS ALA_loadapplet(Ala_ImageInfo_t *Os_info, tJBL_STATUS status, Ala_Tra
         ALOGD("%s: Response Out file is optional as per input", fn);
     }
 #endif
-    ALOGD("%s: enter", fn);
-    if(Os_info == NULL ||
-       pTranscv_Info == NULL)
-    {
-        ALOGE("%s: invalid parameter", fn);
-        return status;
-    }
+
     Os_info->fp = fopen(Os_info->fls_path, "r");
 
     if (Os_info->fp == NULL) {
@@ -855,13 +858,7 @@ tJBL_STATUS ALA_loadapplet(Ala_ImageInfo_t *Os_info, tJBL_STATUS status, Ala_Tra
     {
         len_byte = 0x00;
         offset = 0;
-#if(NXP_LDR_SVC_VER_2 == TRUE)
-        /*Check if the certificate/ is verified or not*/
-        if(status != STATUS_OK)
-        {
-            goto exit;
-        }
-#endif
+
         memset(temp_buf, 0, sizeof(temp_buf));
         ALOGE("%s; Start of line processing", fn);
         status = ALA_ReadScript(Os_info, temp_buf);
@@ -962,21 +959,21 @@ tJBL_STATUS ALA_loadapplet(Ala_ImageInfo_t *Os_info, tJBL_STATUS status, Ala_Tra
             ALOGD("TAGID: Encountered again certificate tag 7F21");
             if(tag40_found == STATUS_OK)
             {
-            ALOGD("2nd Script processing starts with reselect");
-            status = STATUS_FAILED;
-            status = ALA_SelectAla(Os_info,status,pTranscv_Info);
-            if(status == STATUS_OK)
-            {
-                ALOGD("2nd Script select success next store data command");
+                ALOGD("2nd Script processing starts with reselect");
                 status = STATUS_FAILED;
-                status = ALA_StoreData(Os_info,status,pTranscv_Info);
+                status = ALA_SelectAla(Os_info,status,pTranscv_Info);
                 if(status == STATUS_OK)
                 {
-                    ALOGD("2nd Script store data success next certificate verification");
-                    offset = offset+2;
-                    len_byte = Numof_lengthbytes(&temp_buf[offset], &wLen);
-                    status = ALA_Check_KeyIdentifier(Os_info, status, pTranscv_Info,
-                    temp_buf, STATUS_OK, wLen+len_byte+2);
+                    ALOGD("2nd Script select success next store data command");
+                    status = STATUS_FAILED;
+                    status = ALA_StoreData(Os_info,status,pTranscv_Info);
+                    if(status == STATUS_OK)
+                    {
+                        ALOGD("2nd Script store data success next certificate verification");
+                        offset = offset+2;
+                        len_byte = Numof_lengthbytes(&temp_buf[offset], &wLen);
+                        status = ALA_Check_KeyIdentifier(Os_info, status, pTranscv_Info,
+                        temp_buf, STATUS_OK, wLen+len_byte+2);
                     }
                 }
                 /*If the certificate and signature is verified*/
@@ -1002,7 +999,7 @@ tJBL_STATUS ALA_loadapplet(Ala_ImageInfo_t *Os_info, tJBL_STATUS status, Ala_Tra
                     goto exit;
                 }
                 if(temp_buf[offset] == TAG_JSBL_HDR_ID)
-                continue;
+                    continue;
                 else
                     goto exit;
             }
@@ -1071,7 +1068,7 @@ tJBL_STATUS ALA_Check_KeyIdentifier(Ala_ImageInfo_t *Os_info, tJBL_STATUS status
 #endif
     tJBL_STATUS key_found = STATUS_FAILED;
     status = STATUS_FAILED;
-    UINT8 read_buf[1024];
+    UINT8 read_buf[1024] = {0x00, 0x00, };
     bool stat = false;
     INT32 wLen, recvBufferActualSize=0;
     IChannel_t *mchannel = gpAla_Dwnld_Context->mchannel;
@@ -1944,6 +1941,9 @@ tJBL_STATUS Process_EseResponse(Ala_TranscieveInfo_t *pTranscv_Info, INT32 recv_
 *******************************************************************************/
 tJBL_STATUS Process_SelectRsp(UINT8* Recv_data, INT32 Recv_len)
 {
+#if(NXP_LDR_SVC_VER_2 == TRUE)
+  (void)Recv_len;
+#endif
     static const char fn[]="Process_SelectRsp";
     tJBL_STATUS status = STATUS_FAILED;
     int i = 0, len=0;
@@ -2095,6 +2095,7 @@ tJBL_STATUS Process_SelectRsp(UINT8* Recv_data, INT32 Recv_len)
 #ifdef JCOP3_WR
 tJBL_STATUS Bufferize_load_cmds(Ala_ImageInfo_t *Os_info, tJBL_STATUS status, Ala_TranscieveInfo_t *pTranscv_Info)
 {
+    (void)Os_info;
     static const char fn[] = "Bufferize_load_cmds";
     UINT8 Param_P2;
     status = STATUS_FAILED;
@@ -2560,16 +2561,13 @@ tJBL_STATUS Check_LSRootID_Tag(UINT8 *read_buf, UINT16 *offset1)
         {
             UINT8 tag42Len = read_buf[offset+1];
             offset = offset+2;
-            status = memcmp(&read_buf[offset],&tag42Arr[1],tag42Arr[0]);
-            ALOGD("ALA_Check_KeyIdentifier : TAG 42 verified");
-
-            if(status == STATUS_OK)
+            if(memcmp(&read_buf[offset],&tag42Arr[1],tag42Arr[0]) == STATUS_OK)
             {
-                ALOGD("ALA_Check_KeyIdentifier : Loader service root entity "
-                "ID is matched");
+                ALOGD("ALA_Check_KeyIdentifier : Loader service root entity ID is matched");
                 offset = offset+tag42Len;
                 *offset1 = offset;
-                }
+                status = STATUS_OK;
+            }
         }
     }
     return status;
@@ -2677,11 +2675,11 @@ tJBL_STATUS Check_45_Tag(UINT8 *read_buf, UINT16 *offset1, UINT8 *tag45Len)
         offset = offset+2;
         if(tag45Arr[0] == *tag45Len)
         {
-            status = memcmp(&read_buf[offset],&tag45Arr[1],tag45Arr[0]);
-            if(status == STATUS_OK)
+            if(memcmp(&read_buf[offset],&tag45Arr[1],tag45Arr[0]) == STATUS_OK)
             {
                 ALOGD("ALA_Check_KeyIdentifier : TAG 45 verified");
                 *offset1 = offset;
+                status = STATUS_OK;
             }
         }
     }

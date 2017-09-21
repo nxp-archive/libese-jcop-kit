@@ -370,20 +370,9 @@ tJBL_STATUS JcopOsDwnld::GetInfo(JcopOs_ImageInfo_t* pImageInfo, tJBL_STATUS sta
             pImageInfo->version_info.ver1 = pTranscv_Info->sRecvData[recvBufferActualSize-5];
             pImageInfo->version_info.ver0 = pTranscv_Info->sRecvData[recvBufferActualSize-4];
             pImageInfo->version_info.OtherValid = pTranscv_Info->sRecvData[recvBufferActualSize-3];
-#if 0
-            if((pImageInfo->index != 0) &&
-               (pImageInfo->version_info.osid == 0x01) &&
-               (pImageInfo->version_info.OtherValid == 0x11))
-            {
-                ALOGE("3-Step update is not required");
-                memset(pImageInfo->fls_path,0,sizeof(pImageInfo->fls_path));
-                pImageInfo->index=0;
-            }
-            else
-#endif
             {
                 ALOGE("Starting 3-Step update");
-                memcpy(pImageInfo->fls_path, path[pImageInfo->index], sizeof(path[pImageInfo->index]));
+                memcpy(pImageInfo->fls_path, path[pImageInfo->index], strlen(path[pImageInfo->index]));
                 pImageInfo->index++;
             }
             status = STATUS_OK;
@@ -572,7 +561,7 @@ tJBL_STATUS JcopOsDwnld::GetJcopOsState(JcopOs_ImageInfo_t *Os_info, UINT8 *coun
     static const char fn [] = "JcopOsDwnld::GetJcopOsState";
     tJBL_STATUS status = STATUS_SUCCESS;
     FILE *fp;
-    UINT8 xx=0;
+    unsigned int xx = 0;
     ALOGD("%s: enter", fn);
     if(Os_info == NULL)
     {
@@ -591,12 +580,16 @@ tJBL_STATUS JcopOsDwnld::GetJcopOsState(JcopOs_ImageInfo_t *Os_info, UINT8 *coun
                     JCOP_INFO_PATH, strerror(errno));
             return STATUS_FAILED;
         }
-        fprintf(fp, "%u", xx);
-        fclose(fp);
+        else
+        {
+            fprintf(fp, "%u", xx);
+            fclose(fp);
+        }
     }
     else
     {
-        FSCANF_BYTE(fp, "%u", &xx);
+        unsigned int state = 0;
+        xx = FSCANF_BYTE(fp, "%u", &state)?state:JCOP_UPDATE_STATE_INVALID;
         ALOGE("JcopOsState %d", xx);
         fclose(fp);
     }
@@ -669,32 +662,3 @@ tJBL_STATUS JcopOsDwnld::SetJcopOsState(JcopOs_ImageInfo_t *Os_info, UINT8 state
     }
     return status;
 }
-
-#if 0
-void *JcopOsDwnld::GetMemory(UINT32 size)
-{
-    void *pMem;
-    static const char fn [] = "JcopOsDwnld::GetMemory";
-    pMem = (void *)malloc(size);
-
-    if(pMem != NULL)
-    {
-        memset(pMem, 0, size);
-    }
-    else
-    {
-        ALOGD("%s: memory allocation failed", fn);
-    }
-    return pMem;
-}
-
-void JcopOsDwnld::FreeMemory(void *pMem)
-{
-    if(pMem != NULL)
-    {
-        free(pMem);
-        pMem = NULL;
-    }
-}
-
-#endif
